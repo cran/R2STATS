@@ -2,7 +2,7 @@
 #
 #                      R2STATS: A Graphical User Interface for GLM and GLMM in R
 #                       Yvonnick Noel, University of Brittany, Rennes 2, France
-#                                            2006-2010
+#                                            2006-2011
 #
 #--------------------------------------------------------------------------------------------------
 #                                      INTERFACE PROTOTYPE
@@ -14,17 +14,20 @@ r2stats = proto(
   create = function(.) {
 
     # Main Window
-   .$mainWindow = gwindow("R2STATS",visible=FALSE)
+   .$version = packageDescription("R2STATS")$Version
+    mainWindowTitle = paste("R2STATS",Sys.info()["sysname"],.$version,sep="-")
+   .$mainWindow = gwindow(mainWindowTitle,visible=FALSE)
     add(.$mainWindow,bigGroup <- ggroup(horizontal=FALSE),expand=TRUE)
 
     # Menus
-    aOptions = gaction(label=.$translate("Options"),handler=.$editOptions)
+    aLoad    = gaction(label=.$translate("Load models"),handler=.$loadModels)
+    aSave    = gaction(label=.$translate("Save models"),handler=.$saveModels)
     aClose   = gaction(label=.$translate("Quit"),icon="quit",handler=function(h,...) dispose(.$mainWindow))
-    aCalc    = gaction(label=.$translate("Probability calculator"),handler=.$probCalc)
-    aUpdate  = gaction(label=.$translate("Update R2STATS"),handler=.$updateR2stats)
+    aOptions = gaction(label=.$translate("Options"),handler=.$editOptions)
+    aAbout   = gaction(label=.$translate("About..."),icon="about",handler=.$aboutR2stats)
 
-    tmp = list(Session=list(options=aOptions,sep=list(separator=TRUE),quit=aClose),
-               Tools  =list(calc=aCalc,update=aUpdate))
+    tmp = list(Session=list(load=aLoad,save=aSave,sep=list(separator=TRUE),quit=aClose),
+               Help  =list(options=aOptions,about=aAbout))
     names(tmp) = .$translate(names(tmp))
    .$menu = gmenu(tmp,cont=.$mainWindow)
 
@@ -47,26 +50,23 @@ r2stats = proto(
     addSpring(urlFrame)
     add(urlFrame,      tmp          <- ggroup())
     addSpring(tmp)
-    add(tmp,           .$loadFromFileButton <- gbutton(.$translate("Load"),handler=.$dataLoad))
-    addHandlerClicked(.$loadFromFileButton, handler=.$updateDFLists)
+    add(tmp,          .$loadFromFileButton <- gbutton(.$translate("Load"),handler=.$dataLoad))
 
     # Load from a library
     add(dataNb,       libGroup      <- ggroup(horizontal=FALSE),label=.$translate("Package"),expand=TRUE)
     add(libGroup,     listlibFrame  <- gframe(.$translate("Load a data file from an R package"),horizontal=FALSE),expand=TRUE)
     add(listlibFrame, g1            <- ggroup(),expand=TRUE)
     add(g1,           tmp           <- ggroup(horizontal=FALSE))
-    add(tmp,                          glabel(.$translate("Available packages")))
+    add(tmp,                           glabel(.$translate("Available packages")))
     add(tmp,         .$libList      <- gtable(.$getLibList()),expand=TRUE)
-    addhandlerclicked(.$libList,      .$updateLibDataList)
+    addHandlerClicked(.$libList,      .$updateLibDataList)
     add(g1,           tmp           <- ggroup(horizontal=FALSE),expand=TRUE)
     add(tmp,                           glabel(.$translate("Data files")))
     add(tmp,         .$libDataList  <- gtable(.$getLibDataList(),handler=.$loadDataLib), expand=TRUE)
-    addHandlerDoubleclick(.$libDataList, handler=.$updateDFLists)
     add(listlibFrame, tmp           <- ggroup())
     addSpring(tmp)
     add(tmp,                           gbutton(.$translate("Details"),handler=.$getDataDescription))
     add(tmp,          .$loadFromLibButton  <- gbutton(.$translate("Load"),handler=.$loadDataLib))
-    addHandlerClicked(.$loadFromLibButton, handler=.$updateDFLists)
 
     svalue(dataNb) = 1
 
@@ -93,24 +93,23 @@ r2stats = proto(
 
     # Data grids
     add(gridGroup, .$gridNotebook   <- gnotebook(closebuttons=TRUE), expand=TRUE)
-    addhandlerchanged(.$gridNotebook,.$updateTransf, action="ontabchange")
-    addhandlerchanged(.$gridNotebook,.$changeDataset,action="ontabchange")
+   .$handler.ID['onTabChange'] = addhandlerchanged(.$gridNotebook,.$changeDataset,action="tabChange")
+    addhandlerchanged(.$gridNotebook,.$updateTransf, action="tabChange")
 
-    # Open a default data grid
-    dfList = get_all_tables()
-    .$currentDataName = dfList[1]
-    add(.$gridNotebook, tmp <- ggroup(),label = .$currentDataName,expand=TRUE)
-    add(tmp,  gdfedit(eval(parse(text=.$currentDataName),envir=.GlobalEnv),name=.$currentDataName), expand=TRUE)
+    # Define a default data grid
+    dfList = .$getAllTables()
+   .$currentDataName = dfList[1]
 
     # Data selector
     add(gridGroup,tmp             <- ggroup())
-    add(tmp,          .$openGrid  <- gdroplist(dfList,handler=.$changeDataset,action="openswitchgrid"))
-    addHandlerChanged(.$openGrid,   .$updateGrid)
+    add(tmp,          .$openGrid  <- gdroplist(dfList))
+   .$handler.ID['onOpenGrid'] = addhandlerchanged(.$openGrid, handler=.$changeDataset,action="openGrid")
     add(tmp,             myicon1  <- gimage("refresh",dir="stock",handler=.$updateDFLists))
     tooltip(myicon1) = .$translate("Click to update list of loaded data frames")
 
     addSpring(tmp)
     add(tmp,                           gbutton(.$translate("Save"),handler=.$saveGrid))
+    
 
     #-------------------------------------------------- Model Tab --------------------------------------------
     add(.$mainNotebook,bigFrame     <- ggroup(),label=.$translate("Models"),override.closebutton=TRUE,expand=TRUE)
@@ -118,12 +117,12 @@ r2stats = proto(
     add(.$modelPanedGroup,  leftGroup    <- ggroup(horizontal=FALSE),expand=TRUE)
     add(leftGroup,     tabFrame     <- gframe(.$translate("Active data frame"),horizontal=FALSE),expand=TRUE)
     add(tabFrame,      tmp          <- ggroup())
-    add(tmp,          .$currentData <- gdroplist(dfList,handler=.$changeDataset,action="changemodeldata"),expand=TRUE)
-    addhandlerchanged(.$currentData, .$updateVarList)
+    add(tmp,          .$currentData <- gdroplist(dfList,handler=.$updateVarList),expand=TRUE)
     addhandlerchanged(.$currentData, .$clearModelFields)
     addhandlerchanged(.$currentData, .$updateWeightList)
     addhandlerchanged(.$currentData, .$updateConstrFactor)
     addhandlerchanged(.$currentData, .$updateGraphNumVarList)
+   .$handler.ID['onChangeModelData'] = addhandlerchanged(.$currentData, .$changeDataset,action="changeModelData")
     add(tmp,             myicon2 <-   gimage("refresh",dir="stock",handler=.$updateDFLists))
     tooltip(myicon2) = .$translate("Click to update list of loaded data frames")
 
@@ -207,6 +206,10 @@ r2stats = proto(
     add(rightFrame,tmp <- ggroup())
     addSpring(tmp)
     add(tmp,gbutton(.$translate("Estimate"),handler=.$run))
+
+    # Open the first data grid (must appear after all droplists have been created)
+    add(.$gridNotebook, tmp <- ggroup(),label = .$currentDataName,expand=TRUE)
+    add(tmp,  gdfedit(eval(parse(text=.$currentDataName),envir=.GlobalEnv),name=.$currentDataName), expand=TRUE)
 
     #------------------------------------------------ Result Tab ------------------------------------------
     add(.$mainNotebook,resBigFrame <- ggroup(horizontal=FALSE),override.closebutton=TRUE,label=.$translate("Results"))
@@ -329,12 +332,12 @@ r2stats = proto(
     filename = .$fileChoose("open")
 
     if(is.na(filename)) return()
-    if(filename == "")    return()
+    if(filename == "")  return()
 
     # The working directory is implicitly set
     setwd(dirname(filename))
 
-    # This change triggers dataLoad() and updateDFLists() handlers
+    # This change triggers dataLoad() and updateDFLists() handlers in chain
     svalue(.$dataUrl) = filename
   },
   ### Data file selection (from direct path or URL input)
@@ -349,7 +352,7 @@ r2stats = proto(
 
     # Extract file extension
     name.ext = .$getFileExtension(filename)
-    tabname =  .$getBaseName(filename)
+    tabname =  .$removeSpaces(.$getBaseName(filename))
     r.names = NULL
     if(svalue(.$hasRowNames)) r.names = 1
 
@@ -361,17 +364,23 @@ r2stats = proto(
      .$setStatus(.$translate("Status: Ready."))
       return()
     }
-
-    # Close the corresponding grid if we are reloading an existing one
+    
+    # Only close the corresponding grid in case we are reloading an existing one
+    blockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
     displayed.grids = names(.$gridNotebook) 
     if(tabname %in% displayed.grids) {
       pos = which(displayed.grids == tabname)
       svalue(.$gridNotebook) = pos
       dispose(.$gridNotebook)
     }
+    unblockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
 
-    # Update list of data frames (this implicitly updates the variable list and then open the data grid)
+    # Update list of data frames
+   .$updateDFLists(h,...)
+
+    # Reset current data frame: Need the DF list to be refreshed first
    .$currentDataName = tabname
+    svalue(.$currentData) = tabname
     
     # Switch to data grid tab
     svalue(.$mainNotebook) = 2
@@ -402,7 +411,10 @@ r2stats = proto(
   },
   ### Load a dataset from a selected library
   loadDataLib = function(.,h,...) {
-  
+
+    if(.$debug) cat("Function: LoadDataLib\n")
+    
+    # Load a data frame from a package in global workspace
     tabname = svalue(.$libDataList)
     data(list=tabname,package=svalue(.$libList))
     cl = class(eval(parse(text=tabname),envir=.GlobalEnv))
@@ -412,9 +424,23 @@ r2stats = proto(
       return()
     }
 	
+    # Only close the corresponding grid in case we are reloading an existing one
+    blockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
+    displayed.grids = names(.$gridNotebook) 
+    if(tabname %in% displayed.grids) {
+      pos = which(displayed.grids == tabname)
+      svalue(.$gridNotebook) = pos
+      dispose(.$gridNotebook)
+    }
+    unblockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
+
+    # Refresh DF list
+   .$updateDFLists(h,...)
+   
     # Set to current data
    .$currentDataName = tabname
-        
+    svalue(.$currentData) = tabname
+
     # Switch to the datagrid tab
     svalue(.$mainNotebook) = 2
   },
@@ -456,28 +482,45 @@ r2stats = proto(
   ### Update the table list in the grid tab
   updateDFLists = function(.,h,...) {
 
-    available.tables = get_all_tables()
+    if(.$debug) cat("Function: UpdateDfList\n")
+    
+    available.tables = .$getAllTables()
 
-    if(is.null(available.tables)) {
+    if(is.null(available.tables) || !length(available.tables)) {
       available.tables = .$translate("No table")
       nt = 0
       return()
     }
     
-    nt = length(available.tables)
-
-    .$openGrid[] = available.tables
-    svalue(.$openGrid) = .$currentDataName
-
-    .$currentData[] = available.tables
-    svalue(.$currentData) = .$currentDataName
+    # Block all other handlers
+    blockhandler(.$currentData, .$handler.ID['onChangeModelData'])
+    blockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
+    blockhandler(.$openGrid,    .$handler.ID['onOpenGrid'])
     
-    .$setStatus(paste(.$translate("Status:"),nt,.$translate("table(s) in workspace.")))
+    # Add the new file names to droplists
+   .$openGrid[]    = available.tables
+    svalue(.$openGrid) = .$currentDataName
+   .$currentData[] = available.tables
+    svalue(.$currentData) = .$currentDataName
+
+    # Unblock handlers
+    unblockhandler(.$currentData, .$handler.ID['onChangeModelData'])
+    unblockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
+    unblockhandler(.$openGrid,    .$handler.ID['onOpenGrid'])
+    
+    if(.$debug) cat("Active data table:",.$currentDataName,"\n")
+    
+    # Display number of tables in status bar
+    nt = length(available.tables)
+   .$setStatus(paste(.$translate("Status:"),nt,.$translate("table(s) in workspace.")))
   },
   ### Update the data grids upon grid selector change
   updateGrid = function(.,h,...) {
 
-    dataName = .$currentDataName
+    if(.$debug) cat("Function: updateGrid\n")
+    
+    # dataName = .$currentDataName
+    dataName = svalue(.$openGrid)
 
     # Warning: a droplist may be temporarily set to NULL when changed
     if(is.null(dataName)) return()
@@ -541,10 +584,18 @@ r2stats = proto(
       for(com in commands) {
         com = .$removeSpaces(com)
         arguments = unlist(strsplit(com,"="))
+        
+        # No equal sign
         if(length(arguments) != 2) {
-          gmessage("Syntax problem in your command.")
+        
+          if(!length(grep(":",com,fixed=TRUE))) { gmessage(.$translate("Syntax problem in your command.")) ; return() }
+          
+          # Combining factors
+          eval(parse(text=paste(destAccess,"<-with(",dataname,",",com,")[drop=TRUE]",sep="")),envir=.GlobalEnv)
           return()
         }
+        
+        # Recoding a factor
 	      sourceCat = unlist(strsplit(arguments[1],","))
 	      newCat = arguments[2]
 	      eval(parse(text=paste(dataname,"[",destAccess," %in% c('",paste(sourceCat,collapse="','"),"'),'",destVar,"'] ='",newCat,"'",sep="")),envir=.GlobalEnv)
@@ -593,8 +644,8 @@ r2stats = proto(
     }
     
     # Get the current active data tab
-    if(is.null(h$action))             dataname = displayed.grids[svalue(.$gridNotebook)]
-    else if(h$action=="ontabchange")  dataname = displayed.grids[h$pageno]
+    if(is.null(h$action))           dataname = displayed.grids[svalue(.$gridNotebook)]
+    else if(h$action=="tabChange")  dataname = displayed.grids[h$pageno]
 
     if(!length(dataname)) return()
 
@@ -700,7 +751,7 @@ r2stats = proto(
     addHandlerUnrealize(tmp,.$closeData)
     
     # A workaround, suggested by Tom Taverner, as DfEdit does not deal with ordered factors (to be corrected soon)
-    eval(parse(text=paste("for(var in which(sapply(",dataname,",is.ordered))) class(",dataname,"[,var])='factor'",sep="")),envir=.GlobalEnv)
+    # eval(parse(text=paste("for(var in which(sapply(",dataname,",is.ordered))) class(",dataname,"[,var])='factor'",sep="")),envir=.GlobalEnv)
     
     # Open grid
     add(tmp,  gdfedit(eval(parse(text=dataname),envir=.GlobalEnv),name=dataname), expand=TRUE)
@@ -722,7 +773,7 @@ r2stats = proto(
     if(is.null(displayed.grids)) return()
 
     dataname = displayed.grids[svalue(.$gridNotebook)]
-    .$currentDataName = dataname
+   .$currentDataName = dataname
     
     svalue(.$openGrid) = dataname
     svalue(.$currentData) = dataname
@@ -739,49 +790,83 @@ r2stats = proto(
     if(is.null(h$action)) return()
     
     # From data grid selector
-    if(h$action == "openswitchgrid")  {
+    if(h$action == "openGrid")  {
     
-      newName = svalue(.$openGrid)
-
-      # Warning: A droplist may be temporarily set to NULL when changed
-      if(is.null(newName)) return()
-    
-      # Change is already done (avoid infinite loops)
-      if(newName == .$currentDataName) return()
+      if(.$debug) cat("Function: changeDataset, action: openGrid\n")
       
-     .$currentDataName = newName
-      svalue(.$currentData) = newName
+      dataName = svalue(.$openGrid)
+
+      # Warning: a droplist may be temporarily set to NULL when changed
+      if(is.null(dataName)) return()
+      
+      # No available table in working memory
+      if(dataName == .$translate("No table")) return()
+      
+     .$currentDataName = dataName
+
+      # Which tables are already displayed?
+      displayed.grids = names(.$gridNotebook)
+      
+      # Avoid loops
+      blockhandler(.$currentData,.$handler.ID['onChangeModelData'])
+
+      # None: Then open the table
+      if(is.null(displayed.grids)) {
+       .$showData(dataName)
+        return()
+      }
+      
+      # Which one is visible?
+      which.visible = displayed.grids[svalue(.$gridNotebook)]
+
+      # Already selected: Useless to trigger all other handlers
+      if(which.visible == dataName) return()
+
+      # Put the data grid to the foreground if already opened
+      if(dataName %in% displayed.grids) {
+        svalue(.$gridNotebook) = which(displayed.grids == dataName)
+        return()
+      }
+      
+      # ... or open it
+     .$showData(dataName)
+           
+      unblockhandler(.$currentData,.$handler.ID['onChangeModelData'])
     }
     
     # From data frame selector in the model tab
-    else if(h$action == "changemodeldata") {
+    else if(h$action == "changeModelData") {
+    
+      if(.$debug) cat("Function: changeDataset, action: changemodeldata\n")
+
       newName = svalue(.$currentData)
 
       # Warning: A droplist may be temporarily set to NULL when changed
       if(is.null(newName)) return()
-    
-      # Change is already done (avoid infinite loops)
-      if(newName == .$currentDataName) return()
-      
+          
      .$currentDataName = newName
      
-      # This will trigger updateGrid too
+      # This will trigger gridNotebook updating too
+      blockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
       svalue(.$openGrid) = newName
+      unblockhandler(.$gridNotebook,.$handler.ID['onTabChange'])
     }
     
-    else if(h$action == "ontabchange") {
+    else if(h$action == "tabChange") {
     
+      if(.$debug) cat("Function: changeDataset, action: ontabchange\n")
+      
       newName = names(.$gridNotebook)[h$pageno]
-
-      # Change is already done (avoid infinite loops)
-      if(newName == .$currentDataName) return()
+      if(is.null(newName)) return()
       
      .$currentDataName = newName
      
       # This will trigger the model panel reset too
+      blockhandler(.$openGrid,.$handler.ID['onOpenGrid'])
       svalue(.$currentData) = newName
+      unblockhandler(.$openGrid,.$handler.ID['onOpenGrid'])
     }
-    
+        
   },
   ### Get the variable names and types list in a data frame
   getVarList = function(.,dataname,type=TRUE) {
@@ -833,12 +918,17 @@ r2stats = proto(
   ### Update the variable list
   updateVarList = function(.,h,...) {
 
+    newName = svalue(h$obj)
+    if(is.null(newName)) return()
+    
+   .$currentDataName = newName
     if(.$currentDataName == .$translate("No table")) return()
 
     # Update main variable list
     variables = .$getVarList(.$currentDataName)
     if(!length(variables)) return()
-    .$varList[,] = variables
+   .$varList[,] = variables
+    svalue(.$varList) = NULL
   },
   ### Update the weighting variable list
   updateWeightList = function(.,h,...) {
@@ -1592,9 +1682,9 @@ r2stats = proto(
    .$models[modelsToDelete] = NULL
    
     # Remove from model list in the Model tab
-    .$updateModelNameList(h,...)
+   .$updateModelNameList(h,...)
     
-    # Refresh model list in tab 5
+    # Refresh model lists
    .$updateModelList(h,...)
   },
   ### Select all entries in R2STATS model list (tab 5)
@@ -1783,11 +1873,6 @@ r2stats = proto(
   #                                                 R2STATS GENERIC METHODS
   #
   #------------------------------------------------------------------------------------------------------------------------
-  setVersion = function(.,version) {
-   .$version = paste(version)
-   .$mainWindowTitle = paste("R2STATS",Sys.info()["sysname"],version,sep="-")
-    svalue(.$mainWindow) = .$mainWindowTitle
-  },
   getVersion = function(.) {
     return(.$version)
   },
@@ -1800,14 +1885,33 @@ r2stats = proto(
   #                                                 R2STATS TOOLS
   #
   #------------------------------------------------------------------------------------------------------------------------
+  loadModels = function(.,h,...) {
+    load(.$fileChoose("open"),envir=.)
+   .$updateModelNameList(h)
+   .$updateModelList(h)
+  },
+  saveModels = function(.,h,...) {
+    save(models,envir=.,file=.$fileChoose("open"))
+  },
   editOptions = function(.,h,...) {
     gmessage(.$translate("Function not yet available."))
   },
-  probCalc = function(.,h,...) {
-    gmessage(.$translate("Function not yet available."))  
+  aboutR2stats = function(.,h,...) {
+    aboutMessage = gbasicdialog(title="About...",do.buttons=FALSE)
+    messageFrame = gframe(cont=aboutMessage,horizontal=FALSE)
+    add(messageFrame,glabel("<span foreground='blue' size='x-large' weight='ultrabold'>R2STATS</span>",markup=TRUE))
+    add(messageFrame,glabel(paste("version",.$version)))
+    add(messageFrame,glabel("\n   A GTK GUI for fitting GLM and GLMM in R   \n"))
+    add(messageFrame,glabel("<b>Yvonnick Noel</b>",markup=TRUE))
+    add(messageFrame,glabel("University of Brittany at Rennes, France"))
+    add(messageFrame,glabel("<i>yvonnick.noel@uhb.fr</i>\n",markup=TRUE))
+    visible(aboutMessage,set=TRUE)
   },
-  updateR2stats = function(.,h,...) {
-    gmessage(.$translate("Function not yet available."))  
+  getAllTables = function(.) {
+    l = ls(envir=.GlobalEnv)
+    classes = unlist(sapply(l,function(x) class(get(x))))
+    data.tabs = which(classes %in% c("data.frame","matrix"))
+    names(classes)[data.tabs]
   },
   #------------------------------------------------------------------------------------------------------------------------
   #
@@ -1870,6 +1974,8 @@ r2stats = proto(
   menu                       = NULL,
   mainNotebook               = NULL,
   status                     = "",
+  debug                      = FALSE,
+  handler.ID                 = list(),
   #----- Data slots
   dataUrl                    = NULL,
   hasHeader                  = NULL,
@@ -1924,7 +2030,6 @@ r2stats = proto(
   #----- Model comparison slots
   modelList                  = NULL,
   tabdev                     = NULL
-  #----- Probability calculator slots
   #----- Option setting
 )
 
@@ -1934,9 +2039,6 @@ R2STATS = function() {
   # Create R2STATS main window
   r2stats$create()
   
-  # Some settings
-  r2stats$setVersion(0.68)
-
   # Show R2STATS interface
   r2stats$show()
 }
