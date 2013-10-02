@@ -140,11 +140,11 @@ r2stats = proto(
 
     # .$distribList = gdroplist(c("Normale","Binomiale","Poisson","Gamma","Gaussienne inverse","Multinomiale","Multinomiale ordonnée"),handler=.$updateLink)
    .$distribList = gdroplist(.$translate(c("Gaussian","Binomial","Poisson","Gamma","Inverse gaussian")),handler=.$updateLink)
-   .$linkLists = list(Gaussian     = .$translate(c("Identique","Log","Inverse")),
+   .$linkLists = list(Gaussian     = .$translate(c("Identity","Log","Inverse")),
                        Binomial     = .$translate(c("Logit","Probit","Cauchit","Log","Cloglog")),
-                       Poisson      = .$translate(c("Log","Racine","Identique")),
-                       Gamma        = .$translate(c("Inverse","Log","Identique")),
-                       "Inverse gaussian" = .$translate(c("Inverse","Log","Identique","1/mu2")))
+                       Poisson      = .$translate(c("Log","Square root","Identity")),
+                       Gamma        = .$translate(c("Inverse","Log","Identity")),
+                       "Inverse gaussian" = .$translate(c("Inverse","Log","Identity","1/mu2")))
          #              Multinomiale = c("Logit", "Probit", "Cloglog", "Loglog","Cauchit", "Aranda-Ordaz", "Log-gamma"),
          #   "Multinomiale ordonnée" = c("Logit", "Probit", "Cloglog", "Loglog","Cauchit", "Aranda-Ordaz", "Log-gamma"))
     names(.$linkLists) = .$translate(names(.$linkLists))
@@ -356,8 +356,8 @@ r2stats = proto(
     r.names = NULL
     if(svalue(.$hasRowNames)) r.names = 1
 
-    if(tolower(name.ext) == "csv") res = try(assign(tabname, read.csv2(filename,header=svalue(.$hasHeader),row.names=r.names),envir = .GlobalEnv))
-    else                           res = try(assign(tabname,read.table(filename,header=svalue(.$hasHeader),row.names=r.names),envir = .GlobalEnv))
+    if(tolower(name.ext) == "csv") res = try(eval(parse(text=paste("assign('",tabname,"',read.csv2('",filename,"',header=",svalue(.$hasHeader),",row.names=",r.names,"),envir = .GlobalEnv)",sep=""))),silent=TRUE)
+    else                           res = try(eval(parse(text=paste("assign('",tabname,"',read.table('",filename,"',header=",svalue(.$hasHeader),",row.names=",r.names,"),envir = .GlobalEnv)",sep=""))),silent=TRUE)
     
     if(inherits(res,"try-error")) {
       gmessage(.$translate("Download failure: The server might be down\nor the file name incorrect."))
@@ -414,9 +414,9 @@ r2stats = proto(
 
     if(.$debug) cat("Function: LoadDataLib\n")
     
-    # Load a data frame from a package in global workspace
+    # Load a data frame from a package
     tabname = svalue(.$libDataList)
-    data(list=tabname,package=svalue(.$libList))
+    eval(parse(text=paste("data(list='",tabname,"',package='",svalue(.$libList),"')",sep="")),envir=.GlobalEnv)
     cl = class(eval(parse(text=tabname),envir=.GlobalEnv))
 
     if(cl != "data.frame")	{
@@ -1765,7 +1765,7 @@ r2stats = proto(
           eval(parse(text=cmd))
           
           # Adapt column headers
-          if(all.gaussian)
+          if( (all.gaussian) || (all.gamma) )
             attr(.$tabdev,"names")=.$translate(c("Resid. Df", "Resid. Dev","Diff. Df","LR","F","Pr(>F)"))
           else 
             attr(.$tabdev,"names")=.$translate(c("Resid. Df", "Resid. Dev","Diff. Df","LR","Pr(>Chi2)"))
