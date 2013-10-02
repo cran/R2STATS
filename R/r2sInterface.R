@@ -249,7 +249,7 @@ r2stats = proto(
     layout2[1,1] <- .$addData <- gcheckbox(.$translate("Data"),checked=TRUE,handler=.$plotCurrentModel,action="plot")
     layout2[2,1] <- .$addModel <- gcheckbox(.$translate("Model"),checked=TRUE,handler=.$plotCurrentModel,action="plot")
     layout2[3,1] <- .$addCondMeans <- gcheckbox(.$translate("Conditional\nmeans"),checked=FALSE,handler=.$plotCurrentModel,action="plot")
-    layout2[4,1] <- .$addRandCurves <- gcheckbox(.$translate("Random curves"),checked=TRUE,handler=.$plotCurrentModel,action="plot")
+    layout2[4,1] <- .$addRandCurves <- gcheckbox(.$translate("Random\ncurves"),checked=TRUE,handler=.$plotCurrentModel,action="plot")
     layout2[1,2] <- .$addRefLine <- gcheckbox(.$translate("Reference\nline"),handler=.$plotCurrentModel,action="plot")
     layout2[2,2] <- .$addGrid <- gcheckbox(.$translate("Grid"),handler=.$plotCurrentModel,action="plot")
     layout2[3,2] <- .$addNoise <- gcheckbox(.$translate("Noise"),handler=.$plotCurrentModel,action="plot")
@@ -316,8 +316,9 @@ r2stats = proto(
   ### Data file selector
   fileChoose = function(.,type) {
   
-    # Under W32
+    # Under W32 (change backslashes into slashes beforehand)
     if(Sys.info()["sysname"] == "Windows") invisible(file.choose())
+    
     # Under Linux
     else   {
       filter = list("All"=list(patterns = c("*")))
@@ -344,6 +345,7 @@ r2stats = proto(
   dataLoad = function(.,h,...) {
     
     filename = .$trim(svalue(.$dataUrl))
+    filename = gsub("\\\\","/",filename)
 
     if(is.na(filename)) return()
     if(filename == "")  return()

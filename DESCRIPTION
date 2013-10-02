@@ -1,7 +1,7 @@
 Package: R2STATS
 Type: Package
 Title: A GTK GUI for fitting and comparing GLM and GLMM in R
-Version: 0.68-34
+Version: 0.68-35
 Encoding: UTF-8
 Date: 2013-10-02
 Author: Yvonnick Noel
@@ -15,8 +15,8 @@ Imports: grDevices, lattice, lme4, cairoDevice, gWidgets,
         statmod
 Repository: CRAN
 Repository/R-Forge/Project: r2stats
-Repository/R-Forge/Revision: 46
-Repository/R-Forge/DateTimeStamp: 2014-01-22 10:57:50
-Date/Publication: 2014-01-22 16:22:05
-Packaged: 2014-01-22 11:51:58 UTC; rforge
+Repository/R-Forge/Revision: 49
+Repository/R-Forge/DateTimeStamp: 2014-03-17 15:19:30
+Date/Publication: 2014-03-18 12:12:05
+Packaged: 2014-03-17 19:17:49 UTC; rforge
 NeedsCompilation: no
