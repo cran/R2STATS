@@ -1174,7 +1174,7 @@ r2stats = proto(
   },
   ### Extract random variable name from a (1|.) term
   extractRandomVar = function(.,h,...) {
-    fterms = unlist(strsplit(.$removeSpaces(.$ivField)),"+",fixed=TRUE)
+    fterms = unlist(strsplit(.$removeSpaces(.$ivField),"+",fixed=TRUE))
     which.rand = grep("|",fterms,fixed=TRUE)
     if(length(which.rand)>1) {
       gmessage(.$translate("Only one random factor is accepted."))

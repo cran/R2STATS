@@ -1,5 +1,9 @@
 NEWS for R2STATS
 
+Changes for 0.68-39
+-------------------
+* Fixed a bug: Wrong parenthesis placement in strsplit(fixed=TRUE)
+
 Changes for 0.68-34
 -------------------
 
